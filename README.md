@@ -74,11 +74,7 @@ appuser@someinternalhost:~$
 
 ### vpn подключение  
 
-```
-
 bastion_IP = 35.210.101.213
 someinternalhost_IP = 10.132.0.3
-
-```
 
 
