@@ -1,5 +1,8 @@
 # sbelyanin_infra
 
+bastion_IP = 35.210.101.213
+someinternalhost_IP = 10.132.0.3
+
 sbelyanin infra repository
 
 HW - №3
