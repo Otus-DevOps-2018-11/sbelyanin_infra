@@ -58,8 +58,11 @@ Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-1025-gcp x86_64)
 Last login: Sat Dec 22 15:46:17 2018 from 10.132.0.2
 appuser@someinternalhost:~$
 
+### подключение к vpn  
 
-bastion_IP = 35.210.101.213
-someinternalhost_IP = 10.132.0.3
+```bash
 
+bastion_IP = 35.228.152.71
+someinternalhost_IP = 10.166.0.3
 
+```
