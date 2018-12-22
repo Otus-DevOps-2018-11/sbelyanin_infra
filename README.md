@@ -1,38 +1,32 @@
-## sbelyanin_infra
+# sbelyanin_infra
 
-# SBelyanin Infra repository
+sbelyanin infra repository
 
-# HW - №3
+HW - №3
 
-### "Способ подключения к someinternalhost в одну команду из вашего рабочего устройства"
+"Способ подключения к someinternalhost в одну команду из вашего рабочего устройства"
 
-<details><summary>Предварительно сделать</summary><p>
+Предварительно сделать:
 Создание ключей и подключение приватного ключа к ssh агенту.
-
-```ssh-keygen -t rsa -f ~/.ssh/appuser -C appuser -P ""```
-```eval `ssh-agent` ```
-```ssh-add ~/.ssh/appuser```
-
+ssh-keygen -t rsa -f ~/.ssh/appuser -C appuser -P ""
+eval `ssh-agent`
+ssh-add ~/.ssh/appuser
 Копирование публичного ключа в GCP здесь не показана.
-</p></details>
+
 
 Команда для подключения:
-```ssh -t -A -i ~/.ssh/appuser appuser@35.210.101.213 "ssh 10.132.0.3"```
+ssh -t -A -i ~/.ssh/appuser appuser@35.210.101.213 "ssh 10.132.0.3"
 
 -t - форсированно выдавать псевдо терминал для ssh сессии
-
 -A - пробрасовать соединение до ssh агента
-
 appuser - имя пользователя
-
 35.210.101.213 - внешний ip адрес хоста bastion
-
 10.132.0.3 - внутренний ip адрес хоста someinternalhost
 
-### Решениe для подключения из консоли при помощи команды вида ssh someinternalhost из локальной консоли рабочего устройства
+Решениe для подключения из консоли при помощи команды вида ssh someinternalhost из локальной консоли рабочего устройства
 
 Добавляем следующие строки в ~/.ssh/config
-```cat <<EOF>> ~/.ssh/config
+cat <<EOF>> ~/.ssh/config
 Host someinternalhost
          Hostname  10.132.0.3
          user  appuser
@@ -44,13 +38,9 @@ Host bastion
          IdentityFile ~/.ssh/appuser
          ForwardAgent  yes
          RequestTTY  yes
-
 EOF
-```
 
-<details><summary>Подключение</summary><p>
-
-```
+Подключение:
 [root@repo ~]# ssh someinternalhost
 Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-1025-gcp x86_64)
 
@@ -68,9 +58,6 @@ Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-1025-gcp x86_64)
 Last login: Sat Dec 22 15:46:17 2018 from 10.132.0.2
 appuser@someinternalhost:~$
 
-
-```
-</p></details>
 
 bastion_IP = 35.210.101.213
 someinternalhost_IP = 10.132.0.3
