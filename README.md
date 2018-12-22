@@ -1,10 +1,10 @@
 ## sbelyanin_infra
 
-#SBelyanin Infra repository
+# SBelyanin Infra repository
 
-#HW - №3
+# HW - №3
 
-###"Способ подключения к someinternalhost в одну
+### "Способ подключения к someinternalhost в одну
 команду из вашего рабочего устройства"
 
 <details><summary>Предварительно</summary><p>
@@ -25,7 +25,7 @@ appuser - имя пользователя
 35.210.101.213 - внешний ip адрес хоста bastion
 10.132.0.3 - внутренний ip адрес хоста someinternalhost
 
-###Решениe для подключения из консоли при помощи команды вида ssh someinternalhost из локальной консоли рабочего устройства
+### Решениe для подключения из консоли при помощи команды вида ssh someinternalhost из локальной консоли рабочего устройства
 
 Добавляем следующие строки в ~/.ssh/config
 ```cat <<EOF>> ~/.ssh/config
