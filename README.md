@@ -1,13 +1,15 @@
 # sbelyanin_infra
+# sbelyanin infra repository
+
+# HW - №3
 
 bastion_IP = 35.210.101.213
+
 someinternalhost_IP = 10.132.0.3
 
-sbelyanin infra repository
 
-HW - №3
 
-"Способ подключения к someinternalhost в одну команду из вашего рабочего устройства"
+## "Способ подключения к someinternalhost в одну команду из вашего рабочего устройства"
 
 Предварительно сделать:
 
@@ -33,7 +35,7 @@ appuser - имя пользователя
 10.132.0.3 - внутренний ip адрес хоста someinternalhost
 ```
 
-"Решениe для подключения из консоли при помощи команды вида ssh someinternalhost из локальной консоли рабочего устройства"
+## "Решениe для подключения из консоли при помощи команды вида ssh someinternalhost из локальной консоли рабочего устройства"
 
 Добавляем следующие строки в ~/.ssh/config
 
@@ -71,12 +73,4 @@ Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-1025-gcp x86_64)
 
 Last login: Sat Dec 22 15:46:17 2018 from 10.132.0.2
 appuser@someinternalhost:~$
-```
-
-подключение к vpn  
-
-```
-bastion_IP = 35.210.101.213
-
-someinternalhost_IP = 10.132.0.3
 ```
