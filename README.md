@@ -7,6 +7,10 @@ bastion_IP = 35.210.101.213
 
 someinternalhost_IP = 10.132.0.3
 
+testapp_IP = 35.241.129.219
+
+testapp_port = 9292
+
 
 
 ## "Способ подключения к someinternalhost в одну команду из вашего рабочего устройства"
