@@ -1,8 +1,6 @@
 # sbelyanin_infra
 
-# sbelyanin infra repository
-
-# HW - №3
+## ДЗ №3
 
 bastion_IP = 35.210.101.213
 
@@ -80,6 +78,7 @@ Last login: Sat Dec 22 15:46:17 2018 from 10.132.0.2
 appuser@someinternalhost:~$
 ```
 
+
 ## ДЗ №4
 
 ## Данные для подключения к testapp
@@ -124,4 +123,5 @@ sbelyanin_infra]#gcloud compute firewall-rules create default-puma-server \
 
 
 ```
+
 
