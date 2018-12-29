@@ -1,12 +1,14 @@
 # sbelyanin_infra
 
-# sbelyanin infra repository
-
-# HW - №3
+## ДЗ №3
 
 bastion_IP = 35.210.101.213
 
 someinternalhost_IP = 10.132.0.3
+
+testapp_IP = 35.241.129.219
+
+testapp_port = 9292
 
 
 
@@ -75,4 +77,51 @@ Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.15.0-1025-gcp x86_64)
 Last login: Sat Dec 22 15:46:17 2018 from 10.132.0.2
 appuser@someinternalhost:~$
 ```
+
+
+## ДЗ №4
+
+## Данные для подключения к testapp
+
+```
+
+testapp_IP = 35.241.129.219
+testapp_port = 9292
+
+```
+
+## Дополнительное задание:
+
+
+## В результате применения данной команды gcloud мы получаем инстанс с уже запущенным приложением:
+
+```
+
+sbelyanin_infra]#gcloud compute instances create reddit-app \
+--boot-disk-size=10GB \
+--image-family ubuntu-1604-lts \
+--image-project=ubuntu-os-cloud \
+--machine-type=g1-small \
+--tags puma-server \
+--restart-on-failure \
+--metadata-from-file startup-script=startup-script.sh
+
+```
+
+## Созданиеправила для фаирвола GCP при помощи gcloud утилиты:
+
+```
+
+sbelyanin_infra]#gcloud compute firewall-rules create default-puma-server \
+--direction=INGRESS \
+--priority=1000 \
+--network=default \
+--action=ALLOW \
+--rules=tcp:9292 \
+--source-ranges=0.0.0.0/0 \
+--target-tags=puma-server
+
+
+```
+
 
