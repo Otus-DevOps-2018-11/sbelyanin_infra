@@ -1,7 +1,6 @@
 {
 	"project_id": "infr-101",
-        "source_image_family_base": "ubuntu",
-        "source_image_family_full": "ubuntu-base"
+        "source_image_family": "ubuntu"
 }
 
 

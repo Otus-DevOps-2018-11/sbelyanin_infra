@@ -1,7 +1,7 @@
 {
 	"variables": {
 	  "project_id": null,
-	  "source_image_family_base": null,
+	  "source_image_family": null,
 	  "zone": "europe-west1-b",
 	  "machine_type": "f1-micro"
   	 },
@@ -18,10 +18,10 @@
 	   "image_labels": {
 	     "create_date": "{{timestamp}}",
 	     "create_by": "sergey-belyanin",
-	     "based_on": "{{ user `source_image_family_base` }}",
+	     "based_on": "{{ user `source_image_family` }}",
 	     "add_packages": "ruby23-mongodb32"
 	     },
-	   "source_image_family": "{{ user `source_image_family_base` }}",
+	   "source_image_family": "{{ user `source_image_family` }}",
 	   "zone": "{{ user `zone` }}",
 	   "network": "default",
 	   "ssh_username": "appuser",
