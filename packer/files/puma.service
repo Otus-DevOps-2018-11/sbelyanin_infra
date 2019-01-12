@@ -1,0 +1,11 @@
+[Unit]
+Description=Puma HTTP Server on /home/appuser/reddit/
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/puma --dir /home/appuser/reddit/
+
+[Install]
+WantedBy=multi-user.target
+

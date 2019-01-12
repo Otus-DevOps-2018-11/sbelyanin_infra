@@ -1,0 +1,43 @@
+{
+	"variables": {
+	  "project_id": null,
+	  "source_image_family_base": null,
+	  "zone": "europe-west1-b",
+	  "machine_type": "f1-micro"
+  	 },
+
+	"sensitive-variables": ["project_id"],
+
+	"builders": [
+	  {
+	   "type": "googlecompute",
+	   "project_id": "{{ user `project_id` }}",
+	   "image_name": "reddit-base-{{timestamp}}",
+	   "image_family": "reddit-base",
+	   "image_description": "for-hw7-otus",
+	   "image_labels": {
+	     "create_date": "{{timestamp}}",
+	     "create_by": "sergey-belyanin",
+	     "based_on": "{{ user `source_image_family_base` }}",
+	     "add_packages": "ruby23-mongodb32"
+	     },
+	   "source_image_family": "{{ user `source_image_family_base` }}",
+	   "zone": "{{ user `zone` }}",
+	   "network": "default",
+	   "ssh_username": "appuser",
+	   "machine_type": "{{ user `machine_type` }}",
+	   "disk_size": "10",
+	   "disk_type": "pd-standard"
+	  }
+	],
+	"provisioners": [
+	  {
+	   "type": "shell",
+	   "execute_command": "sudo {{.Path}}",
+	   "scripts": [
+	     "scripts/install_ruby.sh",
+	     "scripts/install_mongodb.sh"
+	     ]    
+	  }
+	]
+}
