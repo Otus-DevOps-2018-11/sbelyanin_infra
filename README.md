@@ -68,5 +68,97 @@ appuser3:${file(var.public_key_path)}EOF
 
 ## ДЗ №6 с **
 
+# - Добавил файл terraform/lb.tf:
+
+<details><summary>содержимое</summary><p>
+
+```bash
+
+
+resource "google_compute_http_health_check" "puma-http-hc" {
+  name         = "puma-http-health-check"
+  request_path = "/"
+  port         = "9292"
+
+  timeout_sec        = 1
+  check_interval_sec = 1
+}
+
+resource "google_compute_target_pool" "puma-target-pool" {
+  name = "instance-pool"
+
+  instances = [
+    "${google_compute_instance.app.*.self_link}",
+  ]
+
+  health_checks = [
+    "${google_compute_http_health_check.puma-http-hc.self_link}",
+  ]
+}
+
+resource "google_compute_forwarding_rule" "puma-lb-forwarding-rule" {
+  name                  = "puma-lb-forwarding-rule"
+  load_balancing_scheme = "EXTERNAL"
+  target                = "${google_compute_target_pool.puma-target-pool.self_link}"
+
+```
+
+</p></details>
+
+в нем использовал следующие рессурсы:
+ - google_compute_http_health_check - для проверки работоспособности puma http на порту TCP/9292
+ - google_compute_target_pool - для подключения созданных инстансов в пул
+ - google_compute_forwarding_rule - для создания правила балансировки в созданный пул
+
+# - Используя простое копирования ресурса в конфигирации terraform приводит к тому, что:
+ - уменьшается читаемость кода
+ - увеличивается возможность совершить ошибку
+ - увеличивается время для правки/добавления новых рессурсов
+Резюме: то, что описывается два и более раз в коде надо описывать как единое целое используя различные переменные, функции и другое.
+
+
+# - Удалил описание reddit-app2 из кода. Изменил файл main.tf, variables.tf, outputs.tf и lb.tf для работы с параметром count. Проверил работоспособность деплоя - все работает, балансер проверяет pumа сервера по http:9292 и передает запросы к живым сервисам.
+
+<details><summary>изменения</summary><p>
+
+lb.tf - приведен выше.
+
+main.tf:
+
+```bash
+
+resource "google_compute_instance" "app" {
+  name         = "reddit-app-${count.index}"
+  count        = "${var.node_count}"
+
+```
+
+outputs.tf:
+
+```bash
+
+output "app_external_ip" {
+  value = "${google_compute_instance.app.*.network_interface.0.access_config.0.assigned_nat_ip}"
+}
+
+output "lb_external_ip" {
+  value = "${google_compute_forwarding_rule.puma-lb-forwarding-rule.ip_address}"
+}
+
+
+```
+
+variables.tf:
+
+```bash
+
+variable "node_count" {
+  default = "1"
+}
+
+
+```
+
+</p></details>
 
 
