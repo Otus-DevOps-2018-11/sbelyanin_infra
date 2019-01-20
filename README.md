@@ -53,7 +53,8 @@ resource "google_compute_project_metadata" "ssh-keys" {
     	ssh-keys = <<EOF
 appuser1:${file(var.public_key_path)}
 appuser2:${file(var.public_key_path)}
-appuser3:${file(var.public_key_path)}EOF
+appuser3:${file(var.public_key_path)}
+EOF
   }
 }
 ````
@@ -68,7 +69,7 @@ appuser3:${file(var.public_key_path)}EOF
 
 ## ДЗ №6 с **
 
-# - Добавил файл terraform/lb.tf:
+ - Добавил файл terraform/lb.tf:
 
 <details><summary>содержимое</summary><p>
 
@@ -110,14 +111,16 @@ resource "google_compute_forwarding_rule" "puma-lb-forwarding-rule" {
  - google_compute_target_pool - для подключения созданных инстансов в пул
  - google_compute_forwarding_rule - для создания правила балансировки в созданный пул
 
-# - Используя простое копирования ресурса в конфигирации terraform приводит к тому, что:
+Используя простое копирования ресурса в конфигирации terraform приводит к тому, что:
  - уменьшается читаемость кода
  - увеличивается возможность совершить ошибку
  - увеличивается время для правки/добавления новых рессурсов
+ 
+ 
 Резюме: то, что описывается два и более раз в коде надо описывать как единое целое используя различные переменные, функции и другое.
 
 
-# - Удалил описание reddit-app2 из кода. Изменил файл main.tf, variables.tf, outputs.tf и lb.tf для работы с параметром count. Проверил работоспособность деплоя - все работает, балансер проверяет pumа сервера по http:9292 и передает запросы к живым сервисам.
+- Удалил описание reddit-app2 из кода. Изменил файл main.tf, variables.tf, outputs.tf и lb.tf для работы с параметром count. Проверил работоспособность деплоя - все работает, балансер проверяет pumа сервера по http:9292 и передает запросы к живым сервисам.
 
 <details><summary>изменения</summary><p>
 
@@ -160,5 +163,3 @@ variable "node_count" {
 ```
 
 </p></details>
-
-
