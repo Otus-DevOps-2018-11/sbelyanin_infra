@@ -1,0 +1,39 @@
+{
+	"variables": {
+	  "project_id": null,
+	  "source_image_family": null,
+	  "zone": "europe-west1-b",
+	  "machine_type": "f1-micro"
+  	 },
+	"builders": [
+	  {
+	   "type": "googlecompute",
+	   "project_id": "{{ user `project_id` }}",
+	   "image_name": "reddit-app-{{timestamp}}",
+	   "image_family": "reddit-app-base",
+	   "image_description": "for-hw7-otus",
+	   "image_labels": {
+	     "create_date": "{{timestamp}}",
+	     "create_by": "sergey-belyanin",
+	     "based_on": "{{ user `source_image_family` }}",
+	     "add_packages": "ruby23"
+	     },
+	   "source_image_family": "{{ user `source_image_family` }}",
+	   "zone": "{{ user `zone` }}",
+	   "network": "default",
+	   "ssh_username": "appuser",
+	   "machine_type": "{{ user `machine_type` }}",
+	   "disk_size": "10",
+	   "disk_type": "pd-standard"
+	  }
+	],
+	"provisioners": [
+	  {
+	   "type": "shell",
+	   "execute_command": "sudo {{.Path}}",
+	   "scripts": [
+	     "scripts/install_ruby.sh"
+	     ]    
+	  }
+	]
+}
