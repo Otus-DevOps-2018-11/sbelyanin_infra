@@ -25,7 +25,7 @@ module "db" {
   db_disk_image    = "${var.db_disk_image}"
 }
 
-module "vps" {
-  source        = "../modules/vps"
+module "vpc" {
+  source        = "../modules/vpc"
   source_ranges = ["${var.source_ranges_stage}"]
 }
