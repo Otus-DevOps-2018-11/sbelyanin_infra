@@ -1,165 +1,243 @@
 # sbelyanin_infra
 
-## ДЗ №6
+## ДЗ №7
 
-Установлен пакет Terraform - версии 0.11.9
-
-Для аутентификации и управления ресурсами GCP используется ADC
-
-Создан файлы конфигурации для terraform:
-- terraform/main.tf - основной файл
-- terraform/outputs.tf - файл для переменных на выходе
-- terraform/variables.tf - файл для определения входных переменных
-- terraform/terraform.tfvars.example - пример со значениями входных переменных 
-
-Используя file и remote-exec prvisioner добавил установку systemd unit файла для автоматического запуска Puma http сервера и установку приложения с добавлением его зависимостей в систему:
-- terraform/files/puma.service - unit file
-- terraform/files/deploy.sh - deploy service file
-
-Параметризировал созданную конфигурацию переменными:
-- project - ID проекта в GCP
-- region - регион создания ресурсов и их запуска
-- zone - зона создания ресурсов и их запуска
-- public_key_path - публичный ключ для подключения к системе
-- private_key_path - приватный ключ для подключения provisioner
-- disk_image - семейство образов диска созданнного в прошлом занятии при помощи Packer
-
-Исследованны параметры запуска terraform:
-- init - инициализация рабочей директории в том числе подгрузка необходимых плагинсов
-- plan - вывод плана действий
-- apply - создание или изменение инфраструктуры
-- fmt - приведение файлов конфигурации к стандартному виду
-- refresh - обновление файлов состояния инфраструктуры с реальных ресурсов 
-- auto-approve=true - параметр для подтверждения действий
-- taint - ручное маркирование определенного рессурса для пересоздания
-- validate - проверка синтаксиса файлов конфигурации
-
-Исследован механизм провизининга - он срабатывает только при создании/удалении ресурсов. Для того чтобы перепременить их возможно использовать параметр taint. 
-
-Используя terraform validate проверил созданную конфигурацию для создания ресурсов.
-
-Используя terraform apply -auto-approve=true создал инстанс reddit-app и правило фаирвола.
-
-Проверил доступ по ssh к созданному инстансу используя пару приватный-публичный ключ и доступ к сервису Puma http по порту TCP/9292.
-
-
-## ДЗ №6 со *  
-
-- Добавил в основную конфигурацию проекта описание ресурса ssh-keys :
+ - Создан и протестирован ресурс фаирвола.
+ ```bash
+resource "google_compute_firewall" "firewall_ssh"
+```
+- Использована команда import для импортирование уже существующих ресурсов в stage файлы терраформ.
 
 ```bash
-resource "google_compute_project_metadata" "ssh-keys" {
-	metadata {
-    	ssh-keys = <<EOF
-appuser1:${file(var.public_key_path)}
-appuser2:${file(var.public_key_path)}
-appuser3:${file(var.public_key_path)}
-EOF
-  }
-}
-````
+terraform import google_compute_firewall.firewall_ssh default-allow-ssh
+```
 
-для создания метаинформации ssh-keys всего проекта.
-
-После применения конфигурации к проекту - мета информация была установленна в проект. Пользователями appuser[1..3] стало возможно подключаться по ssh использую приваткний ключ пользователя appuser.
-
-- Добавил в веб интерфейсе ssh ключ пользователя appuser_web в метаданные проекта. Так как terraform имеет декларативное описание ресурсов, используя terraform plan можно заметить что были изменения в ресурсах которые мы описале ранее (используя локальные файлы состояния). При применении нашей конфигурации ресурс будет пересоздан.
-
-Проблема может возникать если правки ресурсов будут производится из разных мест, разными инструментами. С одной стороны это проблема, с другой стороны это стимул использовать один инструмент для правки/деплоя и всегда иметь минимальный конфиг дрифт. Чтобы избежать этого terraform позволяет хранить файлы состояния в облакоподных сервисах и использовать их коллективно.
-
-## ДЗ №6 с **
-
- - Добавил файл terraform/lb.tf:
+- Иследована неявная зависимость ресурсов и как следствие влияние этого на очередность создание ресурсов.
 
 <details><summary>содержимое</summary><p>
 
 ```bash
+  network_interface {
+    access_config = {
+      nat_ip = "${google_compute_address.app_ip.address}"
+```
 
+</p></details>
 
-resource "google_compute_http_health_check" "puma-http-hc" {
-  name         = "puma-http-health-check"
-  request_path = "/"
-  port         = "9292"
+ - Структуризировал ресурсы при помощи пакера - на образ с mongodb (db.json) и с установленным Ruby (app.json)
+ - Разбил основной конфиг main.tf на два конфига - конфигурация с приложением (app.tf) и БД mongo (bd.tf).
+ - Вынес конфигурацию фаирвола в отдельный файл vpc.tf
 
-  timeout_sec        = 1
-  check_interval_sec = 1
+ - Подготовил файловую структуру для переноса ресурсов в модульную архитектуру - создал директории modules/app, module/db и modules/vpc.
+ - Создал в директориях файл main.tf, variables.tf и outputs.tf и скопировал соответствующее содержимое из основного каталога.
+ - Удалил db.tf и app.tf в основном каталоге и вставил в main.tf вызовы созданных модулей.
+
+<details><summary>содержимое</summary><p>
+
+```bash
+provider "google" {
+  version = "1.4.0"
+  project = "${var.project}"
+  region  = "${var.region}"
 }
 
-resource "google_compute_target_pool" "puma-target-pool" {
-  name = "instance-pool"
-
-  instances = [
-    "${google_compute_instance.app.*.self_link}",
-  ]
-
-  health_checks = [
-    "${google_compute_http_health_check.puma-http-hc.self_link}",
-  ]
+module "app" {
+  source           = "../modules/app"
+  public_key_path  = "${var.public_key_path}"
+  private_key_path = "${var.private_key_path}"
+  node_count       = "${var.node_count}"
+  region           = "${var.region}"
+  zone             = "${var.zone}"
+  app_disk_image   = "${var.app_disk_image}"
+  db_internal_ip   = "${module.db.db_internal_ip}"
 }
 
-resource "google_compute_forwarding_rule" "puma-lb-forwarding-rule" {
-  name                  = "puma-lb-forwarding-rule"
-  load_balancing_scheme = "EXTERNAL"
-  target                = "${google_compute_target_pool.puma-target-pool.self_link}"
+module "db" {
+  source           = "../modules/db"
+  public_key_path  = "${var.public_key_path}"
+  private_key_path = "${var.private_key_path}"
+  node_count       = "${var.node_count}"
+  region           = "${var.region}"
+  zone             = "${var.zone}"
+  db_disk_image    = "${var.db_disk_image}"
+}
+
+module "vpc" {
+  source        = "../modules/vpc"
+  source_ranges = ["${var.source_ranges_prod}"]
+}
+
+```
+</p></details>
+ 
+ - Параметризировал модуль vpc
+ 
+ ```bash
+ resource "google_compute_firewall" "firewall_ssh" {
+  source_ranges = "${var.source_ranges}"
+ ```
+ 
+ - Проверил работу параметризованного модуля vpc, внося во входную переменную различные IP.
+
+ - Создал инфраструктуру для двух окружений (stage/ и prod/), используя созданные модули.
+ - Создал файл storage-bucket.tf для использования модуля storage-bucket из публичного реестра модулей.
+
+<details><summary>содержимое</summary><p>
+
+```bash
+provider "google" {
+  version = "1.4.0"
+  project = "${var.project}"
+  region  = "${var.region}"
+}
+
+module "storage-bucket" {
+  source  = "SweetOps/storage-bucket/google"
+  version = "0.1.1"
+  name    = ["bucket-reddit"]
+}
+
+output storage-bucket_url {
+  value = "${module.storage-bucket.url}"
+}
+```
+</p></details>
+
+ - Проверил доступность бакета.
+ 
+## ДЗ №7 со *  
+
+ - Настроил хранение стайт файла в в удаленном бекенде. Вынес настройки в отдельный файл backend.tf
+ 
+ <details><summary>содержимое</summary><p>
+
+```bash
+
+terraform {
+  backend "gcs" {
+    bucket = "bucket-reddit"
+    prefix = "terraform/prod"
+  }
+}
+
+```
+
+
+```bash
+
+terraform {
+  backend "gcs" {
+    bucket = "bucket-reddit"
+    prefix = "terraform/stage"
+  }
+}
 
 ```
 
 </p></details>
 
-в нем использовал следующие рессурсы:
- - google_compute_http_health_check - для проверки работоспособности puma http на порту TCP/9292
- - google_compute_target_pool - для подключения созданных инстансов в пул
- - google_compute_forwarding_rule - для создания правила балансировки в созданный пул
+ - Протестировал возмонось совместного использование стайт файлов на удаленном бэкенде. Если кто-то имеющий доступ к бэкенду что-то изменяет в ресурсах, то появляется блокировка стайт файлов и невозможность внести изменения.
 
-Используя простое копирования ресурса в конфигирации terraform приводит к тому, что:
- - уменьшается читаемость кода
- - увеличивается возможность совершить ошибку
- - увеличивается время для правки/добавления новых рессурсов
+<details><summary>содержимое</summary><p>
+
+```bash
+ Error locking state: Error acquiring the state lock: writing "gs://bucket-reddit/terraform/stage/default.tflock" failed: googleapi: Error 412: Precondition Failed, conditionNotMet
+Lock Info:
+  ID:        1548587742966097
+  Path:      gs://bucket-reddit/terraform/stage/default.tflock
+  Operation: OperationTypeApply
+  Who:       root@repo.domain
+  Version:   0.11.9
+  Created:   2019-01-27 11:15:18.712023857 +0000 UTC
+  Info:
+
+
+Terraform acquires a state lock to protect the state from being written
+by multiple users at the same time. Please resolve the issue above and try
+again. For most commands, you can disable locking with the "-lock=false"
+flag, but this is not recommended.
+
+```
  
+</p></details>
+
+
  
-Резюме: то, что описывается два и более раз в коде надо описывать как единое целое используя различные переменные, функции и другое.
+## ДЗ №7 с **
 
-
-- Удалил описание reddit-app2 из кода. Изменил файл main.tf, variables.tf, outputs.tf и lb.tf для работы с параметром count. Проверил работоспособность деплоя - все работает, балансер проверяет pumа сервера по http:9292 и передает запросы к живым сервисам.
-
-<details><summary>изменения</summary><p>
-
-lb.tf - приведен выше.
-
-main.tf:
+ - Добавил provisioner для деплоя приложения в модуль app и provisoner в модуль db для небольшой перенастройки сервиса mongodb
+  
+<details><summary>содержимое</summary><p>
 
 ```bash
+app/main.tf:
+  connection {
+    type        = "ssh"
+    user        = "appuser"
+    agent       = false
+    private_key = "${file(var.private_key_path)}"
+  }
 
-resource "google_compute_instance" "app" {
-  name         = "reddit-app-${count.index}"
-  count        = "${var.node_count}"
+  provisioner "file" {
+    source      = "../modules/app/puma.service"
+    destination = "/tmp/puma.service"
+  }
+
+  provisioner "file" {
+    source      = "../modules/app/deploy.sh"
+    destination = "/tmp/deploy.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/deploy.sh",
+      "/tmp/deploy.sh ${join(" ", var.db_internal_ip)}",
+    ]
+  }
+
+
+db/main.tf
+  connection {
+    type        = "ssh"
+    user        = "appuser"
+    agent       = false
+    private_key = "${file(var.private_key_path)}"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mongod.conf",
+      "sudo systemctl restart mongod",
+    ]
+  }
+
 
 ```
 
-outputs.tf:
+</p></details>
+
+В случае для передачи IP адреса БД приложению в модуле app использовалась выходная переменная из модуля bd (${module.db.db_internal_ip}). Для ее передачи в VM был изменен файл производивший установку и настройку приложения
+
+<details><summary>содержимое</summary><p>
 
 ```bash
 
-output "app_external_ip" {
-  value = "${google_compute_instance.app.*.network_interface.0.access_config.0.assigned_nat_ip}"
-}
+#!/bin/bash
+set -e
 
-output "lb_external_ip" {
-  value = "${google_compute_forwarding_rule.puma-lb-forwarding-rule.ip_address}"
-}
+echo "export DATABASE_URL=$1" >> ~/.bash_profile
+
+cd ~
+git clone -b monolith https://github.com/express42/reddit.git ~/reddit
+cd ~/reddit
+bundle install
+
+sudo mv /tmp/puma.service /etc/systemd/system/puma.service
+sudo systemctl start puma
+sudo systemctl enable puma
 
 
 ```
 
-variables.tf:
-
-```bash
-
-variable "node_count" {
-  default = "1"
-}
-
-
-```
 
 </p></details>
