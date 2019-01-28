@@ -1,243 +1,205 @@
 # sbelyanin_infra
 
-## ДЗ №7
+## ДЗ №8
 
- - Создан и протестирован ресурс фаирвола.
- ```bash
-resource "google_compute_firewall" "firewall_ssh"
-```
-- Использована команда import для импортирование уже существующих ресурсов в stage файлы терраформ.
+ - Проверены системные компоненты для установки и работы работы с ansible:
 
 ```bash
-terraform import google_compute_firewall.firewall_ssh default-allow-ssh
+python --version
+Python 2.7.5
+
+pip --version
+pip 19.0.1
+
+ansible --version
+ansible 2.7.6
+
 ```
 
-- Иследована неявная зависимость ресурсов и как следствие влияние этого на очередность создание ресурсов.
-
-<details><summary>содержимое</summary><p>
+ - Поднята инфраструктура окружения stage при помощи terraform:
 
 ```bash
-  network_interface {
-    access_config = {
-      nat_ip = "${google_compute_address.app_ip.address}"
+terraform apply
+...
+Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
+
+Outputs:
+app_external_ip = 34.76.119.239
+db_external_ip = 35.205.17.199
+
 ```
 
-</p></details>
 
- - Структуризировал ресурсы при помощи пакера - на образ с mongodb (db.json) и с установленным Ruby (app.json)
- - Разбил основной конфиг main.tf на два конфига - конфигурация с приложением (app.tf) и БД mongo (bd.tf).
- - Вынес конфигурацию фаирвола в отдельный файл vpc.tf
-
- - Подготовил файловую структуру для переноса ресурсов в модульную архитектуру - создал директории modules/app, module/db и modules/vpc.
- - Создал в директориях файл main.tf, variables.tf и outputs.tf и скопировал соответствующее содержимое из основного каталога.
- - Удалил db.tf и app.tf в основном каталоге и вставил в main.tf вызовы созданных модулей.
-
-<details><summary>содержимое</summary><p>
+ - Создал инвентори файл ansible/inventory:
 
 ```bash
-provider "google" {
-  version = "1.4.0"
-  project = "${var.project}"
-  region  = "${var.region}"
-}
-
-module "app" {
-  source           = "../modules/app"
-  public_key_path  = "${var.public_key_path}"
-  private_key_path = "${var.private_key_path}"
-  node_count       = "${var.node_count}"
-  region           = "${var.region}"
-  zone             = "${var.zone}"
-  app_disk_image   = "${var.app_disk_image}"
-  db_internal_ip   = "${module.db.db_internal_ip}"
-}
-
-module "db" {
-  source           = "../modules/db"
-  public_key_path  = "${var.public_key_path}"
-  private_key_path = "${var.private_key_path}"
-  node_count       = "${var.node_count}"
-  region           = "${var.region}"
-  zone             = "${var.zone}"
-  db_disk_image    = "${var.db_disk_image}"
-}
-
-module "vpc" {
-  source        = "../modules/vpc"
-  source_ranges = ["${var.source_ranges_prod}"]
-}
-
+appserver ansible_host=34.76.119.239 ansible_user=appuser ansible_private_key_file=~/.ssh/appuser
+dbserver ansible_host=35.205.17.199 ansible_user=appuser ansible_private_key_file=~/.ssh/appuser
 ```
-</p></details>
- 
- - Параметризировал модуль vpc
- 
- ```bash
- resource "google_compute_firewall" "firewall_ssh" {
-  source_ranges = "${var.source_ranges}"
- ```
- 
- - Проверил работу параметризованного модуля vpc, внося во входную переменную различные IP.
 
- - Создал инфраструктуру для двух окружений (stage/ и prod/), используя созданные модули.
- - Создал файл storage-bucket.tf для использования модуля storage-bucket из публичного реестра модулей.
-
-<details><summary>содержимое</summary><p>
-
-```bash
-provider "google" {
-  version = "1.4.0"
-  project = "${var.project}"
-  region  = "${var.region}"
-}
-
-module "storage-bucket" {
-  source  = "SweetOps/storage-bucket/google"
-  version = "0.1.1"
-  name    = ["bucket-reddit"]
-}
-
-output storage-bucket_url {
-  value = "${module.storage-bucket.url}"
-}
-```
-</p></details>
-
- - Проверил доступность бакета.
- 
-## ДЗ №7 со *  
-
- - Настроил хранение стайт файла в в удаленном бекенде. Вынес настройки в отдельный файл backend.tf
- 
- <details><summary>содержимое</summary><p>
+ - Убедился, что Ansible может управлять хостами appserver и dbserver используя модуль ping:
 
 ```bash
 
-terraform {
-  backend "gcs" {
-    bucket = "bucket-reddit"
-    prefix = "terraform/prod"
-  }
+ansible appserver -i ./inventory -m ping
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+ansible dbserver -i ./inventory -m ping
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
 }
 
 ```
 
-
-```bash
-
-terraform {
-  backend "gcs" {
-    bucket = "bucket-reddit"
-    prefix = "terraform/stage"
-  }
-}
-
-```
-
-</p></details>
-
- - Протестировал возмонось совместного использование стайт файлов на удаленном бэкенде. Если кто-то имеющий доступ к бэкенду что-то изменяет в ресурсах, то появляется блокировка стайт файлов и невозможность внести изменения.
-
-<details><summary>содержимое</summary><p>
-
-```bash
- Error locking state: Error acquiring the state lock: writing "gs://bucket-reddit/terraform/stage/default.tflock" failed: googleapi: Error 412: Precondition Failed, conditionNotMet
-Lock Info:
-  ID:        1548587742966097
-  Path:      gs://bucket-reddit/terraform/stage/default.tflock
-  Operation: OperationTypeApply
-  Who:       root@repo.domain
-  Version:   0.11.9
-  Created:   2019-01-27 11:15:18.712023857 +0000 UTC
-  Info:
-
-
-Terraform acquires a state lock to protect the state from being written
-by multiple users at the same time. Please resolve the issue above and try
-again. For most commands, you can disable locking with the "-lock=false"
-flag, but this is not recommended.
-
-```
- 
-</p></details>
-
-
- 
-## ДЗ №7 с **
-
- - Добавил provisioner для деплоя приложения в модуль app и provisoner в модуль db для небольшой перенастройки сервиса mongodb
+ - Добавил различные параметры ansible в кофигурационный файл ansible.cfg:
   
-<details><summary>содержимое</summary><p>
+```bash
+
+ansible/ansible.cfg:
+[defaults]
+inventory = ./inventory
+remote_user = appuser
+private_key_file = ~/.ssh/appuser
+host_key_checking = False
+retry_files_enabled = False
+
+```
+
+ - Изменил файл инвентори с учетом того, что некоторые параметры стали избыточны:
 
 ```bash
-app/main.tf:
-  connection {
-    type        = "ssh"
-    user        = "appuser"
-    agent       = false
-    private_key = "${file(var.private_key_path)}"
-  }
 
-  provisioner "file" {
-    source      = "../modules/app/puma.service"
-    destination = "/tmp/puma.service"
-  }
+ansible/inventory:
+appserver ansible_host=34.76.119.239
+dbserver ansible_host=35.205.17.199
 
-  provisioner "file" {
-    source      = "../modules/app/deploy.sh"
-    destination = "/tmp/deploy.sh"
-  }
+```
 
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x /tmp/deploy.sh",
-      "/tmp/deploy.sh ${join(" ", var.db_internal_ip)}",
-    ]
-  }
+ - Проверил работу используя модуль command, позволяющий запускать произвольные команды:
 
+```bash
 
-db/main.tf
-  connection {
-    type        = "ssh"
-    user        = "appuser"
-    agent       = false
-    private_key = "${file(var.private_key_path)}"
-  }
+ansible appserver -m command -a uptime
+appserver | CHANGED | rc=0 >>
+ 19:21:07 up  1:50,  1 user,  load average: 0.00, 0.00, 0.00
 
-  provisioner "remote-exec" {
-    inline = [
-      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mongod.conf",
-      "sudo systemctl restart mongod",
-    ]
-  }
+ansible dbserver -m command -a uptime
+dbserver | CHANGED | rc=0 >>
+ 19:21:18 up  1:51,  1 user,  load average: 0.00, 0.00, 0.00
 
 
 ```
 
-</p></details>
-
-В случае для передачи IP адреса БД приложению в модуле app использовалась выходная переменная из модуля bd (${module.db.db_internal_ip}). Для ее передачи в VM был изменен файл производивший установку и настройку приложения
-
-<details><summary>содержимое</summary><p>
+ - Определил группы хостов в инвентори файле ansible/inventory и проверим работу с ними:
 
 ```bash
+ansible/inventory:
+[app]
+appserver ansible_host=34.76.119.239
 
-#!/bin/bash
-set -e
+[db]
+dbserver ansible_host=35.205.17.199
 
-echo "export DATABASE_URL=$1" >> ~/.bash_profile
+ansible app -m ping
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+ansible db -m ping
+dbserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
 
-cd ~
-git clone -b monolith https://github.com/express42/reddit.git ~/reddit
-cd ~/reddit
-bundle install
+``` 
 
-sudo mv /tmp/puma.service /etc/systemd/system/puma.service
-sudo systemctl start puma
-sudo systemctl enable puma
+ - Создал файл inventory.yml, используя YAML перенес в него текущие записи inventory и проверил работу:
 
+```bash
+ansible/inventory.yml:
+all:
+  children:
+    app:
+      hosts:
+        appserver:
+           ansible_host: 34.76.119.239
+    db:
+      hosts:
+        dbserver:
+           ansible_host: 35.205.17.199
+
+ansible all -m ping -i inventory.yml
+dbserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
 
 ```
 
+ - Проверил что на app и bd сервере стоят компоненты для работы приложения и статус сервиса mongodb соответственно:
+
+```bash
+
+ansible app -m shell -a 'ruby -v; bundler -v'
+appserver | CHANGED | rc=0 >>
+ruby 2.3.1p112 (2016-04-26) [x86_64-linux-gnu]
+Bundler version 2.0.1
+
+ansible db -m systemd -a name=mongod
+dbserver | SUCCESS => {
+    "changed": false,
+    "name": "mongod",
+    "status": {
+        "ActiveState": "active",
+
+ansible db -m service -a name=mongod
+dbserver | SUCCESS => {
+    "changed": false,
+    "name": "mongod",
+    "status": {
+        "ActiveState": "active",
+
+``` 
+
+ - Склонировал репозиторий с приложением на app сервер (репозитарий уже присутствует - ДЗ со звездочками):
+
+```bash
+ansible app -m git -a \
+> 'repo=https://github.com/express42/reddit.git dest=/home/appuser/reddit'
+appserver | SUCCESS => {
+    "after": "5c217c565c1122c5343dc0514c116ae816c17ca2",
+    "before": "5c217c565c1122c5343dc0514c116ae816c17ca2",
+    "changed": false,
+    "remote_url_changed": false
+}
+
+``` 
+
+ - Создал плейбук ansible/clone.yml и выполнил его. Удалил его и выполнил заново плейбук:
+
+```bash
+ansible-playbook clone.yml
+PLAY RECAP ************************************************************************************
+appserver                  : ok=2    changed=0    unreachable=0    failed=0
+
+PLAY RECAP ************************************************************************************
+appserver                  : ok=2    changed=1    unreachable=0    failed=0
+
+```
+Т.к. при первом прогоне плей бука репозитарий уже существовал и накатка не изменила его, то ansible показал что изменений нету. При втором прогоне, после удаления, произошли изменения в файловой системе - ansible показал это "changed=1".
+
+
+<details><summary>содержимое</summary><p>
 
 </p></details>
+
+## ДЗ №8 со *  
+
