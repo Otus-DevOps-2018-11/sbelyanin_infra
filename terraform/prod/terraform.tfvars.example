@@ -1,0 +1,6 @@
+project = "infra-911"
+public_key_path = "~/.ssh/appuser.pub"
+private_key_path = "~/.ssh/appuser"
+zone = "b"
+node_count = "1"
+source_ranges_prod = [ "186.151.123.91/32" ]
