@@ -1,243 +1,402 @@
 # sbelyanin_infra
 
-## ДЗ №7
+## ДЗ №8
 
- - Создан и протестирован ресурс фаирвола.
- ```bash
-resource "google_compute_firewall" "firewall_ssh"
-```
-- Использована команда import для импортирование уже существующих ресурсов в stage файлы терраформ.
-
-```bash
-terraform import google_compute_firewall.firewall_ssh default-allow-ssh
-```
-
-- Иследована неявная зависимость ресурсов и как следствие влияние этого на очередность создание ресурсов.
+ - Проверены системные компоненты для установки и работы работы с ansible:
 
 <details><summary>содержимое</summary><p>
 
 ```bash
-  network_interface {
-    access_config = {
-      nat_ip = "${google_compute_address.app_ip.address}"
-```
+python --version
+Python 2.7.5
 
+pip --version
+pip 19.0.1
+
+ansible --version
+ansible 2.7.6
+
+```
 </p></details>
 
- - Структуризировал ресурсы при помощи пакера - на образ с mongodb (db.json) и с установленным Ruby (app.json)
- - Разбил основной конфиг main.tf на два конфига - конфигурация с приложением (app.tf) и БД mongo (bd.tf).
- - Вынес конфигурацию фаирвола в отдельный файл vpc.tf
-
- - Подготовил файловую структуру для переноса ресурсов в модульную архитектуру - создал директории modules/app, module/db и modules/vpc.
- - Создал в директориях файл main.tf, variables.tf и outputs.tf и скопировал соответствующее содержимое из основного каталога.
- - Удалил db.tf и app.tf в основном каталоге и вставил в main.tf вызовы созданных модулей.
+ - Поднята инфраструктура окружения stage при помощи terraform:
 
 <details><summary>содержимое</summary><p>
 
 ```bash
-provider "google" {
-  version = "1.4.0"
-  project = "${var.project}"
-  region  = "${var.region}"
-}
+terraform apply
+...
+Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
 
-module "app" {
-  source           = "../modules/app"
-  public_key_path  = "${var.public_key_path}"
-  private_key_path = "${var.private_key_path}"
-  node_count       = "${var.node_count}"
-  region           = "${var.region}"
-  zone             = "${var.zone}"
-  app_disk_image   = "${var.app_disk_image}"
-  db_internal_ip   = "${module.db.db_internal_ip}"
-}
-
-module "db" {
-  source           = "../modules/db"
-  public_key_path  = "${var.public_key_path}"
-  private_key_path = "${var.private_key_path}"
-  node_count       = "${var.node_count}"
-  region           = "${var.region}"
-  zone             = "${var.zone}"
-  db_disk_image    = "${var.db_disk_image}"
-}
-
-module "vpc" {
-  source        = "../modules/vpc"
-  source_ranges = ["${var.source_ranges_prod}"]
-}
+Outputs:
+app_external_ip = 34.76.119.239
+db_external_ip = 35.205.17.199
 
 ```
 </p></details>
- 
- - Параметризировал модуль vpc
- 
- ```bash
- resource "google_compute_firewall" "firewall_ssh" {
-  source_ranges = "${var.source_ranges}"
- ```
- 
- - Проверил работу параметризованного модуля vpc, внося во входную переменную различные IP.
 
- - Создал инфраструктуру для двух окружений (stage/ и prod/), используя созданные модули.
- - Создал файл storage-bucket.tf для использования модуля storage-bucket из публичного реестра модулей.
+ - Создал инвентори файл ansible/inventory:
 
 <details><summary>содержимое</summary><p>
 
 ```bash
-provider "google" {
-  version = "1.4.0"
-  project = "${var.project}"
-  region  = "${var.region}"
-}
+appserver ansible_host=34.76.119.239 ansible_user=appuser ansible_private_key_file=~/.ssh/appuser
+dbserver ansible_host=35.205.17.199 ansible_user=appuser ansible_private_key_file=~/.ssh/appuser
 
-module "storage-bucket" {
-  source  = "SweetOps/storage-bucket/google"
-  version = "0.1.1"
-  name    = ["bucket-reddit"]
-}
-
-output storage-bucket_url {
-  value = "${module.storage-bucket.url}"
-}
 ```
 </p></details>
 
- - Проверил доступность бакета.
- 
-## ДЗ №7 со *  
+ - Убедился, что Ansible может управлять хостами appserver и dbserver используя модуль ping:
 
- - Настроил хранение стайт файла в в удаленном бекенде. Вынес настройки в отдельный файл backend.tf
+<details><summary>содержимое</summary><p>
  
- <details><summary>содержимое</summary><p>
-
 ```bash
 
-terraform {
-  backend "gcs" {
-    bucket = "bucket-reddit"
-    prefix = "terraform/prod"
-  }
+ansible appserver -i ./inventory -m ping
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+ansible dbserver -i ./inventory -m ping
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
 }
 
 ```
-
-
-```bash
-
-terraform {
-  backend "gcs" {
-    bucket = "bucket-reddit"
-    prefix = "terraform/stage"
-  }
-}
-
-```
-
 </p></details>
 
- - Протестировал возмонось совместного использование стайт файлов на удаленном бэкенде. Если кто-то имеющий доступ к бэкенду что-то изменяет в ресурсах, то появляется блокировка стайт файлов и невозможность внести изменения.
+
+ - Добавил различные параметры ansible в кофигурационный файл ansible.cfg:
 
 <details><summary>содержимое</summary><p>
 
 ```bash
- Error locking state: Error acquiring the state lock: writing "gs://bucket-reddit/terraform/stage/default.tflock" failed: googleapi: Error 412: Precondition Failed, conditionNotMet
-Lock Info:
-  ID:        1548587742966097
-  Path:      gs://bucket-reddit/terraform/stage/default.tflock
-  Operation: OperationTypeApply
-  Who:       root@repo.domain
-  Version:   0.11.9
-  Created:   2019-01-27 11:15:18.712023857 +0000 UTC
-  Info:
 
-
-Terraform acquires a state lock to protect the state from being written
-by multiple users at the same time. Please resolve the issue above and try
-again. For most commands, you can disable locking with the "-lock=false"
-flag, but this is not recommended.
+ansible/ansible.cfg:
+[defaults]
+inventory = ./inventory
+remote_user = appuser
+private_key_file = ~/.ssh/appuser
+host_key_checking = False
+retry_files_enabled = False
 
 ```
- 
+</p></details>
+
+ - Изменил файл инвентори с учетом того, что некоторые параметры стали избыточны:
+
+<details><summary>содержимое</summary><p>
+
+```bash
+
+ansible/inventory:
+appserver ansible_host=34.76.119.239
+dbserver ansible_host=35.205.17.199
+
+```
+</p></details>
+
+ - Проверил работу используя модуль command, позволяющий запускать произвольные команды:
+
+<details><summary>содержимое</summary><p>
+
+```bash
+
+ansible appserver -m command -a uptime
+appserver | CHANGED | rc=0 >>
+ 19:21:07 up  1:50,  1 user,  load average: 0.00, 0.00, 0.00
+
+ansible dbserver -m command -a uptime
+dbserver | CHANGED | rc=0 >>
+ 19:21:18 up  1:51,  1 user,  load average: 0.00, 0.00, 0.00
+
+```
+</p></details>
+
+ - Определил группы хостов в инвентори файле ansible/inventory и проверим работу с ними:
+
+<details><summary>содержимое</summary><p>
+
+```bash
+ansible/inventory:
+[app]
+appserver ansible_host=34.76.119.239
+
+[db]
+dbserver ansible_host=35.205.17.199
+
+ansible app -m ping
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+ansible db -m ping
+dbserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+``` 
 </p></details>
 
 
- 
-## ДЗ №7 с **
+ - Создал файл inventory.yml, используя YAML перенес в него текущие записи inventory и проверил работу:
 
- - Добавил provisioner для деплоя приложения в модуль app и provisoner в модуль db для небольшой перенастройки сервиса mongodb
+<details><summary>содержимое</summary><p>
+
+```bash
+ansible/inventory.yml:
+all:
+  children:
+    app:
+      hosts:
+        appserver:
+           ansible_host: 34.76.119.239
+    db:
+      hosts:
+        dbserver:
+           ansible_host: 35.205.17.199
+
+ansible all -m ping -i inventory.yml
+dbserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+appserver | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+```
+</p></details>
+
+
+ - Проверил что на app и bd сервере стоят компоненты для работы приложения и статус сервиса mongodb соответственно:
+
+<details><summary>содержимое</summary><p>
+
+```bash
+
+ansible app -m shell -a 'ruby -v; bundler -v'
+appserver | CHANGED | rc=0 >>
+ruby 2.3.1p112 (2016-04-26) [x86_64-linux-gnu]
+Bundler version 2.0.1
+
+ansible db -m systemd -a name=mongod
+dbserver | SUCCESS => {
+    "changed": false,
+    "name": "mongod",
+    "status": {
+        "ActiveState": "active",
+
+ansible db -m service -a name=mongod
+dbserver | SUCCESS => {
+    "changed": false,
+    "name": "mongod",
+    "status": {
+        "ActiveState": "active",
+
+``` 
+</p></details>
+
+
+ - Склонировал репозиторий с приложением на app сервер (репозитарий уже присутствует - ДЗ со звездочками):
+
+<details><summary>содержимое</summary><p>
+
+```bash
+ansible app -m git -a \
+> 'repo=https://github.com/express42/reddit.git dest=/home/appuser/reddit'
+appserver | SUCCESS => {
+    "after": "5c217c565c1122c5343dc0514c116ae816c17ca2",
+    "before": "5c217c565c1122c5343dc0514c116ae816c17ca2",
+    "changed": false,
+    "remote_url_changed": false
+}
+
+``` 
+</p></details>
+
+ - Создал плейбук ansible/clone.yml и выполнил его. Удалил его и выполнил заново плейбук:
+
+<details><summary>содержимое</summary><p>
+
+```bash
+ansible-playbook clone.yml
+PLAY RECAP ************************************************************************************
+appserver                  : ok=2    changed=0    unreachable=0    failed=0
+
+PLAY RECAP ************************************************************************************
+appserver                  : ok=2    changed=1    unreachable=0    failed=0
+
+```
+</p></details>
+
+Т.к. при первом прогоне плей бука репозитарий уже существовал и накатка не изменила его, то ansible показал что изменений нету. При втором прогоне, после удаления, произошли изменения в файловой системе - ansible показал это "changed=1".
+
+## ДЗ №8 со *  
+
+ - Создал скрипт-парсер конфиг файла inventory в формате ini. В скрипте захордкоженно имя входного файла. При запуске с параметрами:
+ --list выдает на выходе JSON для Ansible >= v1.3 возвращая элемент верхнего уровня с именем _meta, в котором могут быть перечислены все переменные для хостов.
+ --host выдает заглушку "{"_meta": {"hostvars": {}}}"
+ любые другие параметры также получают заглушку "{}"
   
-<details><summary>содержимое</summary><p>
+<details><summary>inventory.sh</summary><p>
 
 ```bash
-app/main.tf:
-  connection {
-    type        = "ssh"
-    user        = "appuser"
-    agent       = false
-    private_key = "${file(var.private_key_path)}"
-  }
-
-  provisioner "file" {
-    source      = "../modules/app/puma.service"
-    destination = "/tmp/puma.service"
-  }
-
-  provisioner "file" {
-    source      = "../modules/app/deploy.sh"
-    destination = "/tmp/deploy.sh"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x /tmp/deploy.sh",
-      "/tmp/deploy.sh ${join(" ", var.db_internal_ip)}",
-    ]
-  }
-
-
-db/main.tf
-  connection {
-    type        = "ssh"
-    user        = "appuser"
-    agent       = false
-    private_key = "${file(var.private_key_path)}"
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mongod.conf",
-      "sudo systemctl restart mongod",
-    ]
-  }
-
-
-```
-
-</p></details>
-
-В случае для передачи IP адреса БД приложению в модуле app использовалась выходная переменная из модуля bd (${module.db.db_internal_ip}). Для ее передачи в VM был изменен файл производивший установку и настройку приложения
-
-<details><summary>содержимое</summary><p>
-
-```bash
-
 #!/bin/bash
-set -e
 
-echo "export DATABASE_URL=$1" >> ~/.bash_profile
+function print_list()
+{
 
-cd ~
-git clone -b monolith https://github.com/express42/reddit.git ~/reddit
-cd ~/reddit
-bundle install
+LG=""
+LM=""
+TR=0
+IT=0
+IM=1
 
-sudo mv /tmp/puma.service /etc/systemd/system/puma.service
-sudo systemctl start puma
-sudo systemctl enable puma
+FILE=inventory
 
+LG+="{\n"
+LM+="\t\"_meta\": {\n\t   \"hostvars\": {\n\t\t"
+
+while read LINE; do
+  if [[ $LINE == *\[*\]* ]]
+  then
+
+# echo ""> test.sem
+
+
+     if [[ $TR == 1 ]]
+     then
+       LG+="],\n\t   \"vars\": {}\n\t},\n"
+     fi
+
+     LG+="\t"`echo $LINE | sed 's/\[*\([a-zA-Z_]*\).*/"\1": {/'`"\n\t   \"hosts\": ["
+     TR=1
+     IT=1
+
+#TR = 1 вошли в блок
+#IT = 1 первый итем в блоке
+#IM = 1 первый итем в мета блоке
+#LG - строка вывода основных блоков/групп
+#LM - строка вывода для мета информации
+
+  elif [[ $LINE == *" "*"="* ]]
+  then
+
+      if [[ $IT == 0 ]]
+      then
+        LG+=", "
+      fi
+
+      if [[ $IM == 0 ]]
+      then
+        LM+=",\n\t\t"
+      fi
+
+
+      LG+=`echo $LINE | sed 's/\(.*\)* ansible_host=.*/\"\1\"/'`
+      
+      LM+=`echo $LINE | sed 's/\(.*\)* ansible_host=.*/\"\1\"/'`
+      LM+=": { \"ansible_host\" : \""`echo $LINE | sed 's/.*ansible_host=\(.*\)/\1/'`"\" }"
+
+      IM=0
+      IT=0
+  fi
+    
+done < $FILE
+
+
+
+if [[ $TR == 1 ]]
+then
+   LG+="],\n\t   \"vars\": {}\n\t},\n"
+fi
+
+if [[ $IM == 0 ]]
+then
+   LM+="\n\t   }\n\t}\n"
+fi
+
+LG+="$LM"
+
+LG+="}\n"
+
+echo -e $LG
+echo -e $LG > test.json
+
+#echo -e $LM
+}
+
+case "$1" in
+        --list) print_list ;;
+        --host) echo '{"_meta": {"hostvars": {}}}' ;;
+         *)  echo "{ }" ;;
+esac
 
 ```
 
+</p></details>
+
+ - Создал при помощи скрипта файл ответ в формате JSON для динамического инвентори:
+
+  
+<details><summary>inventory.json</summary><p>
+
+```bash
+
+ {
+	"app": {
+	 "hosts": ["appserver"],
+	 "vars": {}
+	},
+	"db": {
+	 "hosts": ["dbserver"],
+	 "vars": {}
+	},
+	"_meta": {
+	 "hostvars": {
+		"appserver": { "ansible_host" : "34.76.119.239" },
+		"dbserver": { "ansible_host" : "34.76.168.129" }
+	 }
+	}
+}
+ 
+```
 
 </p></details>
+
+ - Дополнительно поправил ansible.cfg строку inventory:
+
+<details><summary>ansible.cfg</summary><p>
+ 
+```bash
+
+[defaults]
+inventory = ./inventory.sh
+```
+</p></details>
+
+- Проверка работоспособности:
+ 
+<details><summary>Итоги</summary><p>
+
+```bash
+
+ansible  all -m ping
+appserver | SUCCESS => {
+    "changed": false, 
+    "ping": "pong"
+}
+dbserver | SUCCESS => {
+    "changed": false, 
+    "ping": "pong"
+}
+
+```
+</p></details>
+
+ - Отличия динамического инвентори от статического - возможнось работать с большим количеством динамических инстансов. В синтаксисе различия на уровне элемента верхнего уровня "_met".
