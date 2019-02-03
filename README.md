@@ -35,15 +35,9 @@ reddit-app-0               : ok=9    changed=7    unreachable=0    failed=0
 reddit-db-0                : ok=3    changed=2    unreachable=0    failed=0
 
 
-
-
-
-
 <details><summary>содержимое</summary><p>
 
 ```bash
 
 ```
 </p></details>
-
- 
