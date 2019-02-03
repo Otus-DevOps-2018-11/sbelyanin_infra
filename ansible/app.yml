@@ -1,9 +1,9 @@
 ---
 - name: Configure App
-  hosts: app
+  hosts: reddit-app-0
   become: true
   vars:
-    db_host: 10.132.0.15
+    - db_host: "{{ hostvars['reddit-db-0']['gce_private_ip'] }}"
   tasks:
     - name: Add unit file for Puma
       copy:
@@ -18,7 +18,8 @@
         group: appuser
 
     - name: enable puma
-      systemd: name=puma enabled=yes     
+      systemd: name=puma enabled=yes
+#    - debug: var=hostvars['reddit-db-0']['gce_private_ip']
       
   handlers:
     - name: reload puma

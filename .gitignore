@@ -5,3 +5,5 @@ variables.json
 *.tfvars
 .terraform/
 *.retry
+infra.json
+gce.ini
