@@ -4,4 +4,6 @@ variables.json
 *.tfstate.backup
 *.tfvars
 .terraform/
-
+*.retry
+infra.json
+gce.ini
