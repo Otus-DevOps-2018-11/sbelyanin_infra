@@ -10,7 +10,7 @@ resource "google_compute_instance" "app" {
     }
   }
 
-  tags = ["reddit-app"]
+  tags = [ "reddit-app", "http-server" ]
 
  # connection {
  #   type        = "ssh"

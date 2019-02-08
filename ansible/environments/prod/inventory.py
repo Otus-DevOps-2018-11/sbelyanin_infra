@@ -207,7 +207,7 @@ class GceInventory(object):
         working directory.
         """
         gce_ini_default_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "gcp/gce.ini")
+            os.path.dirname(os.path.realpath(__file__)),os.getenv('HOME')+"/gcp/gce.ini")
         gce_ini_path = os.environ.get('GCE_INI_PATH', gce_ini_default_path)
 
         # Create a ConfigParser.

@@ -1,0 +1,9 @@
+---
+- name: Configure MongoDB
+  hosts: reddit-db-0
+  become: true
+#  vars:
+#    mongo_bind_ip: 0.0.0.0
+  roles:
+    - db
+
