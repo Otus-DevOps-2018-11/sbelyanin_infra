@@ -7,15 +7,14 @@ env:
   - BR=ansible-3
   - BR=mainbranch
 before_install:
-  - if [ $BR == 'ansible-3' ] || [ $BR == 'terraform-2' ] || [ $BR == 'packer-base' ]
-    then
-      if ([ $TRAVIS_PULL_REQUEST ] && [ -n $TRAVIS_PULL_REQUEST_BRANCH ]) || \
-        [ $TRAVIS_BRANCH == 'master' ]
+  - if [ ! $BR == 'mainbranch' ]
       then
-        TRAVIS_PULL_REQUEST_BRANCH="$BR"
-      else
-        TRAVIS_PULL_REQUEST_BRANCH="none"
-      fi
+        if [ -n $TRAVIS_PULL_REQUEST_BRANCH ] || [ $TRAVIS_BRANCH == 'master' ]
+        then
+          TRAVIS_PULL_REQUEST_BRANCH="$BR"
+        else
+          TRAVIS_PULL_REQUEST_BRANCH="none"
+        fi
     fi
 #  - TRAVIS_PULL_REQUEST_BRANCH="$BR"
   - curl https://raw.githubusercontent.com/express42/otus-homeworks/2018-11/run.sh | bash
