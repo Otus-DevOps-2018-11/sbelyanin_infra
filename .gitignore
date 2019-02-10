@@ -7,3 +7,5 @@ variables.json
 *.retry
 infra.json
 gce.ini
+jdauphant.nginx
+vault.key

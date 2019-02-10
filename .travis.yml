@@ -1,9 +1,15 @@
 dist: trusty
 sudo: required
 language: bash
+env:
+  - BR=terraform-2
+  - BR=packer-base
+  - BR=ansible-3
+  - BR=mainbranch
 before_install:
-- curl https://raw.githubusercontent.com/express42/otus-homeworks/2018-11/run.sh |
-  bash
+  - if [ ! $BR == 'mainbranch' ]; then if [ ! $TRAVIS_PULL_REQUEST_BRANCH == "" ] || [ $TRAVIS_BRANCH == 'master' ]; then TRAVIS_PULL_REQUEST_BRANCH="$BR";  else TRAVIS_PULL_REQUEST_BRANCH="none";  fi fi
+#  - TRAVIS_PULL_REQUEST_BRANCH="$BR"
+  - curl https://raw.githubusercontent.com/express42/otus-homeworks/2018-11/run.sh | bash
 notifications:
   slack:
     rooms:
