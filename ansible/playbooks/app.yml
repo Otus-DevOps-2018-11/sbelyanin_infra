@@ -1,10 +1,9 @@
 ---
 - name: Configure App
-  hosts: reddit-app-0
+#  hosts: reddit-app-0
+  hosts: app
   become: true
-#  vars:
-#    - db_host: 10.132.0.29
-#    - db_host: "{{ hostvars['reddit-db-0']['gce_private_ip'] }}"
   roles:
     - app
     - jdauphant.nginx
+
